@@ -14,7 +14,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 public class StorageCipher18Implementation implements StorageCipher {
-    private static final int keySize = 16; // 128 bits
+    private static final int keySize = 16; // 128-bit AES
     private static final int GCM_TAG_LENGTH = 128;
     private static final int GCM_IV_LENGTH = 12;
     private static final String KEY_ALGORITHM = "AES";
@@ -32,7 +32,7 @@ public class StorageCipher18Implementation implements StorageCipher {
 
         String aesKey = preferences.getString(aesPreferencesKey, null);
 
-        cipher = getCipher();
+        cipher = Cipher.getInstance("AES/GCM/NoPadding");
 
         if (aesKey != null) {
             try {
@@ -53,17 +53,9 @@ public class StorageCipher18Implementation implements StorageCipher {
         editor.apply();
     }
 
-    protected String getAESPreferencesKey() {
-        return "VGhpcyBpcyB0aGUga2V5IGZvciBhIHNlY3VyZSBzdG9yYWdlIEFFUyBLZXkK";
-    }
-
-    protected Cipher getCipher() throws Exception {
-        return Cipher.getInstance("AES/GCM/NoPadding");
-    }
-
     @Override
     public byte[] encrypt(byte[] input) throws Exception {
-        byte[] iv = new byte[getIvSize()];
+        byte[] iv = new byte[GCM_IV_LENGTH];
         secureRandom.nextBytes(iv);
 
         AlgorithmParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
@@ -80,7 +72,7 @@ public class StorageCipher18Implementation implements StorageCipher {
 
     @Override
     public byte[] decrypt(byte[] input) throws Exception {
-        byte[] iv = new byte[getIvSize()];
+        byte[] iv = new byte[GCM_IV_LENGTH];
         System.arraycopy(input, 0, iv, 0, iv.length);
 
         AlgorithmParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
@@ -94,7 +86,7 @@ public class StorageCipher18Implementation implements StorageCipher {
         return cipher.doFinal(payload);
     }
 
-    protected int getIvSize() {
-        return GCM_IV_LENGTH;
+    protected String getAESPreferencesKey() {
+        return "VGhpcyBpcyB0aGUga2V5IGZvciBhIHNlY3VyZSBzdG9yYWdlIEFFUyBLZXkK";
     }
 }
