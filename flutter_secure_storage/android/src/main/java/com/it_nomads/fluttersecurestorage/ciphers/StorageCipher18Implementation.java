@@ -10,11 +10,13 @@ import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
 
 import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 public class StorageCipher18Implementation implements StorageCipher {
-    private static final int keySize = 16;
+    private static final int keySize = 16; // 128 bits
+    private static final int GCM_TAG_LENGTH = 128;
+    private static final int GCM_IV_LENGTH = 12;
     private static final String KEY_ALGORITHM = "AES";
     private static final String SHARED_PREFERENCES_NAME = "FlutterSecureKeyStorage";
     private final Cipher cipher;
@@ -33,9 +35,8 @@ public class StorageCipher18Implementation implements StorageCipher {
         cipher = getCipher();
 
         if (aesKey != null) {
-            byte[] encrypted;
             try {
-                encrypted = Base64.decode(aesKey, Base64.DEFAULT);
+                byte[] encrypted = Base64.decode(aesKey, Base64.DEFAULT);
                 secretKey = rsaCipher.unwrap(encrypted, KEY_ALGORITHM);
                 return;
             } catch (Exception e) {
@@ -58,8 +59,6 @@ public class StorageCipher18Implementation implements StorageCipher {
 
     protected Cipher getCipher() throws Exception {
         return Cipher.getInstance("AES/GCM/NoPadding");
-  
-
     }
 
     @Override
@@ -67,9 +66,8 @@ public class StorageCipher18Implementation implements StorageCipher {
         byte[] iv = new byte[getIvSize()];
         secureRandom.nextBytes(iv);
 
-        AlgorithmParameterSpec ivParameterSpec = getParameterSpec(iv);
-
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivParameterSpec);
+        AlgorithmParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, gcmSpec);
 
         byte[] payload = cipher.doFinal(input);
         byte[] combined = new byte[iv.length + payload.length];
@@ -84,23 +82,19 @@ public class StorageCipher18Implementation implements StorageCipher {
     public byte[] decrypt(byte[] input) throws Exception {
         byte[] iv = new byte[getIvSize()];
         System.arraycopy(input, 0, iv, 0, iv.length);
-        AlgorithmParameterSpec ivParameterSpec = getParameterSpec(iv);
 
-        int payloadSize = input.length - getIvSize();
+        AlgorithmParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
+
+        int payloadSize = input.length - iv.length;
         byte[] payload = new byte[payloadSize];
         System.arraycopy(input, iv.length, payload, 0, payloadSize);
 
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivParameterSpec);
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmSpec);
 
         return cipher.doFinal(payload);
     }
 
     protected int getIvSize() {
-        return 16;
+        return GCM_IV_LENGTH;
     }
-
-    protected AlgorithmParameterSpec getParameterSpec(byte[] iv) {
-        return new IvParameterSpec(iv);
-    }
-
 }
